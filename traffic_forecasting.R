@@ -1,3 +1,7 @@
+#####import libraries#####
+library(tseries)
+library(forecast)
+
 #####load data######
 #train data
 traffic <- read.csv("traffic/train_ML_IOT.csv")
@@ -27,18 +31,18 @@ j4_test$DateTime <- strptime(j4_test$DateTime, format="%Y-%m-%d %H:%M:%S")
 
 #####EDA#####
 
-plot_junction <- function(j, title=""){
+plot_vehicles <- function(j, title=""){
   plot(j$DateTime, j$Vehicles, type = "l", xaxt = "n", xlab="Date", 
        ylab="# of Vehicles", main=title)
-  axis.POSIXct(1, at=seq.POSIXt(j1$DateTime[1], j1$DateTime[length(j1$DateTime)], by = "month"), format="%Y-%m")
+  axis.POSIXct(1, at=seq.POSIXt(j$DateTime[1], j$DateTime[length(j$DateTime)], by = "month"), format="%Y-%m")
 }
 
 #plot time series for each junction
 # par(mfrow=c(2,2)) #uncomment this line to plot all 4 in same plot
-plot_junction(j1, "Junction 1")
-plot_junction(j2, "Junction 2")
-plot_junction(j3, "Junction 3")
-plot_junction(j4, "Junction 4")
+plot_vehicles(j1, "Junction 1")
+plot_vehicles(j2, "Junction 2")
+plot_vehicles(j3, "Junction 3")
+plot_vehicles(j4, "Junction 4")
 #par(mfrow=c(1,1)) #switch back to normal plotting if needed
 
 head(j1$DateTime)
@@ -72,3 +76,22 @@ ts.plot(total)
 #there is only a slight difference in the graph because junction 4 does not have
 #very many vehicles
 
+traffic_total <- data.frame(DateTime=j1$DateTime, Vehicles=total, ID=j1$ID)
+ts.plot(traffic_total$Vehicles)
+plot_vehicles(traffic_total, "All junctions")
+
+#function to run stationarity tests and plot acf, pacf
+stationarity <- function(ts){
+  print(kpss.test(ts$Vehicles, null = "T"))
+  print(adf.test(ts$Vehicles))
+  par(mfrow=c(1,2))
+  acf(ts$Vehicles)
+  pacf(ts$Vehicles)
+  par(mfrow=c(1,1))
+}
+
+stationarity(j1)
+stationarity(j2)
+stationarity(j3)
+stationarity(j4)
+stationarity(traffic_total)
