@@ -95,3 +95,25 @@ stationarity(j2)
 stationarity(j3)
 stationarity(j4)
 stationarity(traffic_total)
+
+library("forecast")
+library("xts")
+library("TSA")
+library("MTS")
+
+#periodogram to identify seasonality
+p <- periodogram(traffic_total$Vehicles)
+
+#looks like most important frequencies are above 0.75e6
+high_freq <- p$freq[which(p$spec > 0.75e6)]
+seasonality <- 1 / high_freq
+seasonality
+
+#we see unsurprising seasonalities at 7 days, 24 hours, and 12 hours
+#but also at 15000, 7500, 5000 hours which isn't clear as to why
+
+msts_data <- msts(traffic_total$Vehicles, seasonal.periods = c(168, 24, 12))
+tbats_model <- tbats(msts_data)
+comp <- tbats.components(tbats_model)
+plot(comp)
+plot(forecast(tbats_model, h=100))
