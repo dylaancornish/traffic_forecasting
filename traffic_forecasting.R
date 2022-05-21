@@ -1,6 +1,10 @@
 #####import libraries#####
 library(tseries)
 library(forecast)
+library(Metrics)
+library("xts")
+library("TSA")
+library("MTS")
 
 #####load data######
 #train data
@@ -96,10 +100,26 @@ stationarity(j3)
 stationarity(j4)
 stationarity(traffic_total)
 
-library("forecast")
-library("xts")
-library("TSA")
-library("MTS")
+#train test splits using last 30 days as testing set
+l <- length(traffic_total$Vehicles)
+test_length <- 30 * 24 #30 days times 24 hours
+train_end <- (l - test_length)
+test_start <- (l - test_length + 1)
+
+traffic_train_split <- traffic_total[1:train_end,]
+traffic_test_split <- traffic_total[test_start:l,]
+
+j1_train_split <- j1[1:train_end,]
+j1_test_split <- j1[test_start:l,]
+
+j2_train_split <- j2[1:train_end,]
+j2_test_split <- j2[test_start:l,]
+
+j3_train_split <- j3[1:train_end,]
+j3_test_split <- j3[test_start:l,]
+
+j4_train_split <- j4[1:train_end,]
+j4_test_split <- j4[test_start:l,]
 
 #periodogram to identify seasonality
 p <- periodogram(traffic_total$Vehicles)
@@ -111,9 +131,52 @@ seasonality
 
 #we see unsurprising seasonalities at 7 days, 24 hours, and 12 hours
 #but also at 15000, 7500, 5000 hours which isn't clear as to why
+#with many seasonalities and most of them not at small integer values,
+#tbats may be a good candidate model (De Livera et al., 2010)
 
-msts_data <- msts(traffic_total$Vehicles, seasonal.periods = c(168, 24, 12))
+#####TBATS MODEL#####
+#first let's try a TBATS model with all 6 seasonalities that we identified
+msts_data <- msts(traffic_train_split$Vehicles, seasonal.periods = seasonality)
 tbats_model <- tbats(msts_data)
 comp <- tbats.components(tbats_model)
 plot(comp)
-plot(forecast(tbats_model, h=100))
+tbats_fc <- forecast(tbats_model, h=720)
+plot(tbats_fc)
+smape(traffic_test_split$Vehicles, tbats_fc$mean)
+#SMAPE is 0.184
+
+#what if we only use the easily explainable seasonalities?
+msts_data2 <- msts(traffic_train_split$Vehicles, seasonal.periods = c(168, 24, 12))
+tbats_model2 <- tbats(msts_data2)
+comp2 <- tbats.components(tbats_model2)
+plot(comp2)
+tbats_fc2 <- forecast(tbats_model2, h=720)
+plot(tbats_fc2)
+smape(traffic_test_split$Vehicles, tbats_fc2$mean)
+#SMAPE improves to 0.116
+
+#now let's try tbats on individual junctions and submit to kaggle
+
+#function to return tbats forecast for a given junction
+#default params are to forecast for test set to submit to kaggle
+junction_tbats <- function(j, fc_h=2952, seasonality=c(168,24,12)){
+  j_tbats <- tbats(msts(j$Vehicles, seasonal.periods = seasonality))
+  fc <- forecast(j_tbats, h=fc_h)
+  plot(fc)
+  return(fc)
+}
+
+j1_tbats_fc <- junction_tbats(j1)
+j2_tbats_fc <- junction_tbats(j2)
+j3_tbats_fc <- junction_tbats(j3)
+j4_tbats_fc <- junction_tbats(j4)
+
+junction_fcs <- c(j1_tbats_fc$mean, j2_tbats_fc$mean, 
+                  j3_tbats_fc$mean, j4_tbats_fc$mean)
+sample <- read.csv("traffic/sample_submission_ML_IOT.csv")
+submission <- data.frame(sample$ID, junction_fcs)
+colnames(submission) <- c('ID', 'Vehicles')
+write.csv(submission, "tbats_submission.csv", row.names=FALSE)
+#submission is 65th place
+
+###################
