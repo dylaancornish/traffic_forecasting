@@ -147,6 +147,7 @@ smape(traffic_test_split$Vehicles, tbats_fc$mean)
 
 #what if we only use the easily explainable seasonalities?
 msts_data2 <- msts(traffic_train_split$Vehicles, seasonal.periods = c(168, 24, 12))
+msts_data2 %>% mstl() %>% autoplot() #decomposing using mstl
 tbats_model2 <- tbats(msts_data2)
 comp2 <- tbats.components(tbats_model2)
 plot(comp2)
@@ -179,4 +180,61 @@ colnames(submission) <- c('ID', 'Vehicles')
 write.csv(submission, "tbats_submission.csv", row.names=FALSE)
 #submission is 65th place
 
-###################
+################################################################# STFL/MSTL Forecast using msts_data 
+
+# STL +  ETS(A,Ad,N)- MSTL Forecast
+mstl_fc <- msts_data %>%  stlf() %>% forecast(h = 720) 
+autoplot(mstl_fc) + ggtitle('STL +  ETS(A,Ad,N)- MSTL Forecast')
+smape(traffic_test_split$Vehicles, mstl_fc$mean) # SMAPE = 0.1083634
+checkresiduals(mstl_fc)
+
+#function to return mstl forecast for a given junction
+#default params are to forecast for test set to submit to kaggle
+junction_mstl <- function(j, fc_h=2952){
+  j_mstl <- stlf(msts(j$Vehicles, seasonal.periods = seasonality))
+  fc <- forecast(j_mstl, h=fc_h)
+  plot(fc)
+  return(fc)
+}
+# Output forecasts for each junction 
+j1_mstl_fc <- junction_mstl(j1)
+j2_mstl_fc <- junction_mstl(j2)
+j3_mstl_fc <- junction_mstl(j3)
+j4_mstl_fc <- junction_mstl(j4)
+# Combine junctions, convert and upload to csv
+junction_fcs_mstl <- c(j1_mstl_fc$mean, j2_mstl_fc$mean, 
+                       j3_mstl_fc$mean, j4_mstl_fc$mean)
+
+submission_mstl <- data.frame(sample$ID, junction_fcs_mstl)
+colnames(submission_mstl) <- c('ID', 'Vehicles')
+write.csv(submission_mstl, "mstl_submission.csv", row.names=FALSE)
+#submission is 101st place
+
+################################################################# Seasonal Naive Forecast using msts_data2
+
+# Seasonal Naive Forecast--Good for highly seasonal data
+snaive_fc <- snaive(msts_data2,h=720)
+autoplot(snaive_fc) + ggtitle('Seasonal Naive Model Forecast')
+smape(traffic_test_split$Vehicles, snaive_fc$mean) # SMAPE = 0.09815507
+checkresiduals(snaive_fc)
+
+#function to return seasonal naive forecast for a given junction
+#default params are to forecast for test set to submit to kaggle
+junction_snaive <- function(j, fc_h=2952, seasonality=c(168,24,12)){
+  fc <- snaive(msts(j$Vehicles, seasonal.periods = seasonality), h=fc_h)
+  plot(fc)
+  return(fc)
+}
+# Output forecasts for each junction 
+j1_snaive_fc <- junction_snaive(j1)
+j2_snaive_fc <- junction_snaive(j2)
+j3_snaive_fc <- junction_snaive(j3)
+j4_snaive_fc <- junction_snaive(j4)
+# Combine junctions, convert and upload to csv
+junction_fcs_snaive <- c(j1_snaive_fc$mean, j2_snaive_fc$mean, 
+                         j3_snaive_fc$mean, j4_snaive_fc$mean)
+
+submission_snaive <- data.frame(sample$ID, junction_fcs_snaive)
+colnames(submission_snaive) <- c('ID', 'Vehicles')
+write.csv(submission_snaive, "snaive_submission.csv", row.names=FALSE)
+#submission is 64th place
