@@ -280,3 +280,79 @@ write.csv(submission, "holt_submission.csv", row.names=FALSE)
 
 #Submission is 167th for when h = 2952. Would place considerably higher if
 # results for h = 720 were accepted on the competition.
+
+
+
+############################################################### uto Arima and STL  MODELS
+
+#auto.arima
+msts_data <- msts(traffic_train_split$Vehicles, seasonal.periods = seasonality)
+ts.plot(msts_data)
+auto.arima.m <- auto.arima(msts_data)
+summary(auto.arima.m)
+checkresiduals(auto.arima.m)
+arima_fore <- forecast(stl_model, h=720)
+smape(traffic_test_split$Vehicles, arima_fore$mean)
+plot(arima_fore)
+#smape is .3521546 
+
+
+
+## STL Model 
+msts_data <- msts(traffic_train_split$Vehicles, seasonal.periods = seasonality, ts.frequency = 500)
+s.p <- stl(msts_data, s.window = "periodic")
+summary(s.p)
+stl_model_forecast <- forecast(s.p, h=720)
+smape(traffic_test_split$Vehicles, stl_model_forecast$mean)
+plot(s.p)
+plot(forecast(s.p, h = 720))
+
+##testing each model to kaggle for arima 
+#function to return arima forecast for a given junction
+#default params are to forecast for test set to submit to kaggle
+junction_arima <- function(j, fc_h=2952, seasonality=c(168,24,12)){
+  j_arima <- auto.arima(msts(j$Vehicles, seasonal.periods = seasonality))
+  fc <- forecast(j_arima, h=fc_h)
+  plot(fc)
+  return(fc)
+}
+
+j1_arima_fc <- junction_arima(j1)
+j2_arima_fc <- junction_arima(j2)
+j3_arima_fc <- junction_arima(j3)
+j4_arima_fc <- junction_arima(j4)
+
+junction_fcs_arima <- c(j1_arima_fc$mean, j2_arima_fc$mean, 
+                        j3_arima_fc$mean, j4_arima_fc$mean)
+sample <- read.csv("/Users/JosephTomal_1/Desktop/Time Series/traffic_forecasting-main/sample_submission_ML_IOT.csv")
+submission <- data.frame(sample$ID, junction_fcs_arima)
+colnames(submission) <- c('ID', 'Vehicles')
+write.csv(submission, "/Users/JosephTomal_1/Desktop/Time Series/traffic_forecasting-main/arima_submission.csv", row.names=FALSE)
+#rank 165 
+
+
+
+##testing each model to kaggle ofr STL
+#function to return STL forecast for a given junction
+#default params are to forecast for test set to submit to kaggle
+junction_stl <- function(j, fc_h=2952, seasonality=c(168,24,12)){
+  j_stl <- stl(msts(j$Vehicles, seasonal.periods = seasonality, ts.frequency = 500), s.window = "periodic")
+  fc <- forecast(j_stl, h=fc_h)
+  plot(fc)
+  return(fc)
+}
+
+j1_stl_fc <- junction_stl(j1)
+j2_stl_fc <- junction_stl(j2)
+j3_stl_fc <- junction_stl(j3)
+j4_stl_fc <- junction_stl(j4)
+
+junction_fcs_stl <- c(j1_stl_fc$mean, j2_stl_fc$mean, 
+                      j3_stl_fc$mean, j4_stl_fc$mean)
+sample <- read.csv("/Users/JosephTomal_1/Desktop/Time Series/traffic_forecasting-main/sample_submission_ML_IOT.csv")
+submission <- data.frame(sample$ID, junction_fcs_stl)
+colnames(submission) <- c('ID', 'Vehicles')
+write.csv(submission, "/Users/JosephTomal_1/Desktop/Time Series/traffic_forecasting-main/stl_submission.csv", row.names=FALSE)
+#rank 167
+
+#################################################################
