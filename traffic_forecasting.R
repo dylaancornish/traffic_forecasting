@@ -238,3 +238,45 @@ submission_snaive <- data.frame(sample$ID, junction_fcs_snaive)
 colnames(submission_snaive) <- c('ID', 'Vehicles')
 write.csv(submission_snaive, "snaive_submission.csv", row.names=FALSE)
 #submission is 64th place
+
+################################################################ Holt Winters Forecast
+
+#Holt-Winters Model
+train_hw <- msts(traffic_train_split$Vehicles, seasonal.periods = c(168, 24, 12))
+holt <- HoltWinters(train_hw)
+#Forecasts & Smape
+forecast_hw <- forecast(holt, h = 720, seasonal = "multiplicative")
+print("SMAPE:")
+smape_hw <- smape(traffic_test_split$Vehicles, forecast_hw$mean)
+smape_hw
+
+#smape comes out to .099 when h = 720 -- better than any SMAPE for each individual junction
+#smapes comes out to .248 when h = 2592 -- much worse than when h = 720
+
+
+#default params are to forecast for test set to submit to kaggle
+
+holt_winters <- function(j, fc_h=2952, seasonality = c(168, 24, 12)){
+  j_hw <- HoltWinters(msts(j$Vehicles, seasonal.periods = seasonality))
+  forecast_hw <- forecast(j_hw, h = fc_h)
+  plot(forecast_hw)
+  return(forecast_hw)
+}
+
+j1_hw_fc <- holt_winters(j1)
+j2_hw_fc <- holt_winters(j2)
+j3_hw_fc <- holt_winters(j3)
+j4_hw_fc <- holt_winters(j4)
+
+
+
+junction_hw <- c(j1_hw_fc$mean, j2_hw_fc$mean, 
+                 j3_hw_fc$mean, j4_hw_fc$mean)
+
+sample <- read.csv("traffic/sample_submission_ML_IOT.csv")
+submission <- data.frame(sample$ID, junction_hw)
+colnames(submission) <- c('ID', 'Vehicles')
+write.csv(submission, "holt_submission.csv", row.names=FALSE)
+
+#Submission is 167th for when h = 2952. Would place considerably higher if
+# results for h = 720 were accepted on the competition.
