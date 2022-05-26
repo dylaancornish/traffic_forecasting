@@ -443,9 +443,15 @@ colnames(submission) <- c('ID', 'Vehicles')
 write.csv(submission, "/Users/JosephTomal_1/Desktop/Time Series/traffic_forecasting-main/stl_submission.csv", row.names=FALSE)
 #rank 167
 
-<<<<<<< HEAD
+#################################################################
+
+smape <- c(stl_smape, smape_hw, snaive_smape, arima_smape, tbats_smape_3s, mstl_smape)
+smape <- sapply(smape, round, 3)
+mase <- c(stl_mase, mase_hw, snaive_mase, arima_mase, tbats_mase_3s, mstl_mase)
+mase <- sapply(mase, round, 3)
+rank <- c(167, 167, 64, 165, 65, 101)
+results <- data.frame(smape, mase, rank)
+rownames(results) <- c("STL", "Holt-Winters", "Seasonal Naive", "Arima", "TBATS", "MSTL")
+results
 
 #################################################################
-=======
-#################################################################
->>>>>>> b02dacc6d983155295f8929f6f4e56df34ffc32b
