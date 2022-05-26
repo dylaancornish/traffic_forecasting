@@ -77,6 +77,7 @@ j4_start_idx <- length(total) - length(j4$Vehicles) + 1
 j1$DateTime[j4_start_idx]
 total[j4_start_idx:length(total)] <- total[j4_start_idx:length(total)] +j4$Vehicles
 ts.plot(total)
+total %>% mstl() %>% autoplot() # decomposing total dataset using mstl
 
 #there is only a slight difference in the graph because junction 4 does not have
 #very many vehicles
@@ -100,6 +101,42 @@ stationarity(j2)
 stationarity(j3)
 stationarity(j4)
 stationarity(traffic_total)
+
+# Plot acf for each junction individually
+par(mfrow=c(2,2))
+j1AC <- acf(j1$Vehicles, plot = FALSE)
+plot(j1AC, main = "Junction 1 ACF")
+j2AC <- acf(j2$Vehicles, plot = FALSE)
+plot(j2AC, main = "Junction 2 ACF")
+j3AC <- acf(j3$Vehicles, plot = FALSE)
+plot(j3AC, main = "Junction 3 ACF")
+j4AC <- acf(j4$Vehicles, plot = FALSE)
+plot(j4AC, main = "Junction 4 ACF")
+par(mfrow=c(2,1))
+totalAC <- acf(traffic_total$Vehicles, plot = FALSE)
+plot(totalAC, main = "All Junctions ACF")
+totalPAC <- pacf(traffic_total$Vehicles, plot = FALSE)
+plot(totalPAC, main = "All Junctions PACF")
+
+# Distribution check -- AIC scoring shows that a logistic distribution provides better outputs 
+# Run Cullen Frey plot 
+descdist(total, discrete = FALSE)
+# Data appears to be between normal and logistic, so we will plot both 
+fit.norm <- fitdist(total, "norm")
+fit.logistic <- fitdist(total, "logis")
+plot(fit.norm)
+plot(fit.logistic)
+# Check aic values of both
+fit.norm$aic
+fit.logistic$aic
+
+# Lag analysis -- Junctions 1 and 2 have a much different lag output than Junctions 3 and 4 
+par(mfrow=c(1,1))
+lag.plot(total, main = "Combined Juntions Lag")
+lag.plot(j1$Vehicles, main = "Junction 1 Lag")
+lag.plot(j2$Vehicles, main = "Junction 2 Lag")
+lag.plot(j3$Vehicles, main = "Junction 3 Lag")
+lag.plot(j4$Vehicles, main = "Junction 4 Lag")
 
 #train test splits using last 30 days as testing set
 l <- length(traffic_total$Vehicles)
@@ -406,5 +443,9 @@ colnames(submission) <- c('ID', 'Vehicles')
 write.csv(submission, "/Users/JosephTomal_1/Desktop/Time Series/traffic_forecasting-main/stl_submission.csv", row.names=FALSE)
 #rank 167
 
+<<<<<<< HEAD
 
 #################################################################
+=======
+#################################################################
+>>>>>>> b02dacc6d983155295f8929f6f4e56df34ffc32b
