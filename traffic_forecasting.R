@@ -5,6 +5,7 @@ library(Metrics)
 library("xts")
 library("TSA")
 library("MTS")
+library(ggplot2)
 
 #####load data######
 #train data
@@ -142,8 +143,12 @@ comp <- tbats.components(tbats_model)
 plot(comp)
 tbats_fc <- forecast(tbats_model, h=720)
 plot(tbats_fc)
-smape(traffic_test_split$Vehicles, tbats_fc$mean)
+tbats_smape_6s <- smape(traffic_test_split$Vehicles, tbats_fc$mean)
+tbats_smape_6s
 #SMAPE is 0.184
+tbats_mase_6s <- mase(traffic_test_split$Vehicles, tbats_fc$mean)
+tbats_mase_6s
+#MASE is 1.769
 
 #what if we only use the easily explainable seasonalities?
 msts_data2 <- msts(traffic_train_split$Vehicles, seasonal.periods = c(168, 24, 12))
@@ -153,8 +158,19 @@ comp2 <- tbats.components(tbats_model2)
 plot(comp2)
 tbats_fc2 <- forecast(tbats_model2, h=720)
 plot(tbats_fc2)
-smape(traffic_test_split$Vehicles, tbats_fc2$mean)
+checkresiduals(tbats_fc2)
+
+tbats_smape_3s <- smape(traffic_test_split$Vehicles, tbats_fc2$mean)
+tbats_smape_3s
 #SMAPE improves to 0.116
+tbats_mase_3s <- mase(traffic_test_split$Vehicles, tbats_fc2$mean)
+tbats_mase_3s
+#MASE improves to 1.163
+
+ts.plot(traffic_test_split$Vehicles,as.ts(tbats_fc2$mean, start=1, end=720),
+        gpars = list(col=c('red','blue'), main="TBATS forecast vs actual",
+                     ylab="Vehicles"))
+legend("topleft", legend = c('Test', 'Forecast'), col = c('red','blue'), lty = 1)
 
 #now let's try tbats on individual junctions and submit to kaggle
 
@@ -185,8 +201,17 @@ write.csv(submission, "tbats_submission.csv", row.names=FALSE)
 # STL +  ETS(A,Ad,N)- MSTL Forecast
 mstl_fc <- msts_data %>%  stlf() %>% forecast(h = 720) 
 autoplot(mstl_fc) + ggtitle('STL +  ETS(A,Ad,N)- MSTL Forecast')
-smape(traffic_test_split$Vehicles, mstl_fc$mean) # SMAPE = 0.1083634
+mstl_smape <- smape(traffic_test_split$Vehicles, mstl_fc$mean) # SMAPE = 0.1083634
+mstl_smape
+
+mstl_mase <- mase(traffic_test_split$Vehicles, mstl_fc$mean)
+mstl_mase #1.024
 checkresiduals(mstl_fc)
+
+ts.plot(traffic_test_split$Vehicles,as.ts(mstl_fc$mean, start=1, end=720),
+        gpars = list(col=c('red','blue'), main="MSTL forecast vs actual",
+                     ylab="Vehicles"))
+legend("topleft", legend = c('Test', 'Forecast'), col = c('red','blue'), lty = 1)
 
 #function to return mstl forecast for a given junction
 #default params are to forecast for test set to submit to kaggle
@@ -215,8 +240,16 @@ write.csv(submission_mstl, "mstl_submission.csv", row.names=FALSE)
 # Seasonal Naive Forecast--Good for highly seasonal data
 snaive_fc <- snaive(msts_data2,h=720)
 autoplot(snaive_fc) + ggtitle('Seasonal Naive Model Forecast')
-smape(traffic_test_split$Vehicles, snaive_fc$mean) # SMAPE = 0.09815507
+snaive_smape <- smape(traffic_test_split$Vehicles, snaive_fc$mean) # SMAPE = 0.09815507
+snaive_smape
+snaive_mase <- mase(traffic_test_split$Vehicles, snaive_fc$mean)
+snaive_mase #0.997
 checkresiduals(snaive_fc)
+
+ts.plot(traffic_test_split$Vehicles,as.ts(snaive_fc$mean, start=1, end=720),
+        gpars = list(col=c('red','blue'), main="Seasonal Naive forecast vs actual",
+                     ylab="Vehicles"))
+legend("topleft", legend = c('Test', 'Forecast'), col = c('red','blue'), lty = 1)
 
 #function to return seasonal naive forecast for a given junction
 #default params are to forecast for test set to submit to kaggle
@@ -253,6 +286,13 @@ smape_hw
 #smape comes out to .099 when h = 720 -- better than any SMAPE for each individual junction
 #smapes comes out to .248 when h = 2592 -- much worse than when h = 720
 
+mase_hw <- mase(traffic_test_split$Vehicles, forecast_hw$mean)
+mase_hw #1.646
+
+ts.plot(traffic_test_split$Vehicles,as.ts(forecast_hw$mean, start=1, end=720),
+        gpars = list(col=c('red','blue'), main="Holt Winters forecast vs actual",
+                     ylab="Vehicles"))
+legend("topleft", legend = c('Test', 'Forecast'), col = c('red','blue'), lty = 1)
 
 #default params are to forecast for test set to submit to kaggle
 
@@ -283,7 +323,7 @@ write.csv(submission, "holt_submission.csv", row.names=FALSE)
 
 
 
-############################################################### uto Arima and STL  MODELS
+############################################################### Auto Arima and STL  MODELS
 
 #auto.arima
 msts_data <- msts(traffic_train_split$Vehicles, seasonal.periods = seasonality)
@@ -291,21 +331,32 @@ ts.plot(msts_data)
 auto.arima.m <- auto.arima(msts_data)
 summary(auto.arima.m)
 checkresiduals(auto.arima.m)
-arima_fore <- forecast(stl_model, h=720)
-smape(traffic_test_split$Vehicles, arima_fore$mean)
+arima_fore <- forecast(auto.arima.m, h=720)
+arima_smape <- smape(traffic_test_split$Vehicles, arima_fore$mean)
+arima_smape
 plot(arima_fore)
 #smape is .3521546 
 
+arima_mase <- mase(traffic_test_split$Vehicles, arima_fore$mean)
+arima_mase
 
+ts.plot(traffic_test_split$Vehicles,as.ts(forecast_hw$mean, start=1, end=720),
+        gpars = list(col=c('red','blue'), main="Holt Winters forecast vs actual",
+                     ylab="Vehicles"))
+legend("topleft", legend = c('Test', 'Forecast'), col = c('red','blue'), lty = 1)
 
 ## STL Model 
 msts_data <- msts(traffic_train_split$Vehicles, seasonal.periods = seasonality, ts.frequency = 500)
 s.p <- stl(msts_data, s.window = "periodic")
 summary(s.p)
 stl_model_forecast <- forecast(s.p, h=720)
-smape(traffic_test_split$Vehicles, stl_model_forecast$mean)
+stl_smape <- smape(traffic_test_split$Vehicles, stl_model_forecast$mean)
+stl_smape #0.357
 plot(s.p)
 plot(forecast(s.p, h = 720))
+
+stl_mase <- mase(traffic_test_split$Vehicles, stl_model_forecast$mean)
+stl_mase
 
 ##testing each model to kaggle for arima 
 #function to return arima forecast for a given junction
@@ -354,5 +405,6 @@ submission <- data.frame(sample$ID, junction_fcs_stl)
 colnames(submission) <- c('ID', 'Vehicles')
 write.csv(submission, "/Users/JosephTomal_1/Desktop/Time Series/traffic_forecasting-main/stl_submission.csv", row.names=FALSE)
 #rank 167
+
 
 #################################################################
